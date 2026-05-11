@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Buscar curso — SGBM{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Backup de curso individual</h1>
+  <p>Busca el curso y dispara el backup directamente</p>
+</div>
+
+<div class="card" style="max-width: 680px;">
+  <div class="card-title">Buscar curso</div>
+
+  <div style="position:relative; margin-bottom:1rem;">
+    <input type="text"
+           id="buscador"
+           placeholder="Escribe el nombre o shortname del curso..."
+           style="width:100%; padding-right:2.5rem;"
+           autocomplete="off">
+    <span id="spinner"
+          style="display:none; position:absolute; right:10px; top:8px;
+                 font-size:14px; color:var(--muted);">⟳</span>
+  </div>
+
+  <!-- Resultados -->
+  <div id="resultados" style="display:none;">
+    <p class="muted" style="font-size:12px; margin-bottom:8px;">
+      <span id="count-resultados">0</span> cursos encontrados
+    </p>
+    <div id="lista-cursos" style="max-height:360px; overflow-y:auto;
+         border:1px solid var(--border); border-radius:var(--radius);">
+    </div>
+  </div>
+
+  <div id="sin-resultados" style="display:none; padding:1rem 0;">
+    <p class="muted">No se encontraron cursos para esa búsqueda.</p>
+  </div>
+
+  <div id="error-busqueda" style="display:none;" class="alert alert-error mt-2"></div>
+</div>
+
+<!-- Modal confirmación -->
+<div id="modal" style="display:none; position:fixed; inset:0;
+     background:rgba(0,0,0,.4); z-index:1000; align-items:center;
+     justify-content:center;">
+  <div style="background:var(--surface); border-radius:var(--radius-lg);
+              padding:1.5rem; width:480px; max-width:90vw;">
+    <h3 style="font-size:15px; font-weight:600; margin-bottom:.5rem;">
+      Confirmar backup
+    </h3>
+    <p class="muted" style="font-size:13px; margin-bottom:1rem;">
+      ¿Deseas generar el backup de este curso?
+    </p>
+    <div id="modal-info"
+         style="background:var(--bg); border-radius:var(--radius);
+                padding:.75rem 1rem; margin-bottom:1.25rem; font-size:13px;">
+    </div>
+    <div class="flex gap-1">
+      <button id="btn-confirmar" class="btn btn-primary">Iniciar backup</button>
+      <button onclick="cerrarModal()" class="btn btn-outline">Cancelar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let cursoSeleccionado = null;
+let timer = null;
+
+const input      = document.getElementById('buscador');
+const spinner    = document.getElementById('spinner');
+const resultados = document.getElementById('resultados');
+const sinRes     = document.getElementById('sin-resultados');
+const lista      = document.getElementById('lista-cursos');
+const errBox     = document.getElementById('error-busqueda');
+const modal      = document.getElementById('modal');
+
+input.addEventListener('input', () => {
+  clearTimeout(timer);
+  const q = input.value.trim();
+
+  if (q.length < 2) {
+    resultados.style.display = 'none';
+    sinRes.style.display     = 'none';
+    return;
+  }
+
+  spinner.style.display = 'inline';
+  timer = setTimeout(() => buscar(q), 400);  // debounce 400ms
+});
+
+async function buscar(q) {
+  errBox.style.display = 'none';
+  try {
+    const fd = new FormData();
+    fd.append('q', q);
+    fd.append('csrfmiddlewaretoken',
+      document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '');
+
+    const r    = await fetch('{% url "backups:buscar" %}', {
+      method: 'POST', body: fd
+    });
+    const data = await r.json();
+    spinner.style.display = 'none';
+
+    if (data.error) {
+      errBox.textContent   = `Error: ${data.error}`;
+      errBox.style.display = 'block';
+      return;
+    }
+
+    if (!data.cursos || data.cursos.length === 0) {
+      resultados.style.display = 'none';
+      sinRes.style.display     = 'block';
+      return;
+    }
+
+    sinRes.style.display     = 'none';
+    resultados.style.display = 'block';
+    document.getElementById('count-resultados').textContent = data.cursos.length;
+
+    lista.innerHTML = data.cursos.map(c => `
+      <div onclick="seleccionar(${c.id}, '${escHtml(c.shortname)}', '${escHtml(c.fullname)}')"
+           style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border);
+                  transition:background .1s;"
+           onmouseover="this.style.background='var(--bg)'"
+           onmouseout="this.style.background=''">
+        <div style="font-size:13px; font-weight:500; color:var(--text);">
+          ${escHtml(c.fullname)}
+        </div>
+        <div style="font-size:11px; color:var(--muted); margin-top:2px;">
+          ID: ${c.id} &nbsp;·&nbsp; ${escHtml(c.shortname)}
+        </div>
+      </div>
+    `).join('');
+
+  } catch(e) {
+    spinner.style.display = 'none';
+    errBox.textContent    = `Error de conexión: ${e}`;
+    errBox.style.display  = 'block';
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+          .replace(/'/g,'&#39;');
+}
+
+function seleccionar(id, shortname, fullname) {
+  cursoSeleccionado = { id, shortname, fullname };
+  document.getElementById('modal-info').innerHTML = `
+    <div style="margin-bottom:4px;">
+      <span class="muted">Nombre:</span>
+      <strong>${escHtml(fullname)}</strong>
+    </div>
+    <div style="margin-bottom:4px;">
+      <span class="muted">Shortname:</span>
+      <span class="mono">${escHtml(shortname)}</span>
+    </div>
+    <div>
+      <span class="muted">ID Moodle:</span>
+      <span class="mono">${id}</span>
+    </div>
+  `;
+  modal.style.display = 'flex';
+}
+
+function cerrarModal() {
+  modal.style.display    = 'none';
+  cursoSeleccionado      = null;
+}
+
+document.getElementById('btn-confirmar').addEventListener('click', async () => {
+  if (!cursoSeleccionado) return;
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled     = true;
+  btn.textContent  = 'Iniciando...';
+
+  const fd = new FormData();
+  fd.append('curso_id',  cursoSeleccionado.id);
+  fd.append('shortname', cursoSeleccionado.shortname);
+  fd.append('fullname',  cursoSeleccionado.fullname);
+  fd.append('csrfmiddlewaretoken',
+    document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '');
+
+  try {
+    const r    = await fetch('{% url "backups:buscar" %}?action=backup',
+      { method: 'POST', body: fd });
+    const data = await r.json();
+
+    cerrarModal();
+    if (data.task_id) {
+      window.location.href = '{% url "backups:lista" %}';
+    }
+  } catch(e) {
+    btn.disabled    = false;
+    btn.textContent = 'Iniciar backup';
+    alert(`Error: ${e}`);
+  }
+});
+
+// Cerrar modal al hacer click fuera
+modal.addEventListener('click', e => {
+  if (e.target === modal) cerrarModal();
+});
+</script>
+{% endblock %}

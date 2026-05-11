@@ -11,4 +11,5 @@ urlpatterns = [
     path('backups/<int:pk>/descargar/', views.DescargarBackupView.as_view(), name='descargar'),
     path('iniciar/',                views.IniciarBackupView.as_view(),   name='iniciar'),
     path('cancelar/',               views.CancelarBackupView.as_view(), name='cancelar'),
+    path('buscar/',                 views.BuscarCursoView.as_view(),    name='buscar'),
 ]

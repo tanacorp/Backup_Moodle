@@ -9,10 +9,30 @@ class BackupLog(models.Model):
         COMPLETADO = 'COMPLETADO', 'Completado'
         FALLIDO    = 'FALLIDO',    'Fallido'
 
+    class TipoBackup(models.TextChoices):
+        PERIODO   = 'PERIODO',   'Por periodo'
+        CATEGORIA = 'CATEGORIA', 'Por categoría'
+
+    # Tipo de backup
+    tipo = models.CharField(
+        max_length=20,
+        choices=TipoBackup.choices,
+        default=TipoBackup.PERIODO,
+        db_index=True,
+    )
+
     # Identificación académica
     periodo  = models.CharField(max_length=10, db_index=True)
-    anio     = models.CharField(max_length=4)
+    anio = models.CharField(max_length=10, blank=True, default='')
     programa = models.CharField(max_length=30)
+
+    # Categoría (solo para tipo=CATEGORIA)
+    categoria_id      = models.IntegerField(null=True, blank=True)
+    categoria_nombre  = models.CharField(max_length=255, blank=True, default='')
+    categoria_carpeta = models.CharField(max_length=255, blank=True, default='')
+    tipo_ruta         = models.CharField(max_length=20, blank=True, default='')
+    # 'nomenclatura' → AÑO/PERIODO/PROGRAMA/
+    # 'fallback'     → CATEGORIA/
 
     # Datos del curso en Moodle
     curso_id  = models.IntegerField()
@@ -41,14 +61,17 @@ class BackupLog(models.Model):
 
     class Meta:
         ordering = ['-fecha_inicio']
-        verbose_name     = 'Backup'
+        verbose_name        = 'Backup'
         verbose_name_plural = 'Backups'
         indexes = [
             models.Index(fields=['periodo', 'estado']),
-            models.Index(fields=['curso_id']),
+            models.Index(fields=['categoria_id', 'estado']),
+            models.Index(fields=['tipo', 'estado']),
         ]
 
     def __str__(self):
+        if self.tipo == self.TipoBackup.CATEGORIA:
+            return f"[{self.estado}] CAT:{self.categoria_nombre} — {self.shortname}"
         return f"[{self.estado}] {self.periodo} — {self.shortname}"
 
     @property

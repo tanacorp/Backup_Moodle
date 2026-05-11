@@ -187,13 +187,6 @@
       if (sigue) alguno = true;
     }
 
-    // Actualizar contador de registros
-    try {
-      const r = await fetch(window.location.href + '&_ajax=1', {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      });
-    } catch(e) {}
-
     if (!alguno) {
       clearInterval(poll);
       // Recargar para mostrar contadores actualizados

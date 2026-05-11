@@ -7,9 +7,11 @@ from django.views import View
 from django.views.generic import ListView, DetailView, TemplateView
 
 from .models import BackupLog
-from .tasks import backup_periodo
-from .validators import validar_periodo
 from django.core.exceptions import ValidationError
+
+from .ssh_client import MoodleSSHClient, SSHClientError
+from .validators import validar_periodo, validar_categoria_id, sanitizar_nombre_archivo
+from .tasks import backup_periodo, backup_categoria
 
 logger = logging.getLogger(__name__)
 
@@ -87,51 +89,115 @@ class BackupDetailView(LoginRequiredMixin, DetailView):
 
 
 class IniciarBackupView(LoginRequiredMixin, View):
-    """
-    POST → dispara la tarea Celery para un periodo.
-    GET  → muestra el formulario de selección.
-    """
     template_name = 'backups/iniciar_backup.html'
 
     def get(self, request):
         from django.shortcuts import render
+
+        # Cargar categorías desde Moodle via SSH
+        categorias = []
+        try:
+            with MoodleSSHClient() as ssh:
+                categorias = ssh.listar_categorias()
+        except Exception as e:
+            messages.warning(request, f"No se pudieron cargar las categorías: {e}")
+
         periodos = (
             BackupLog.objects.values_list('periodo', flat=True)
-            .distinct().order_by('-periodo')
+            .exclude(periodo='')
+            .distinct().order_by('-periodo')[:10]
         )
-        return render(request, self.template_name, {'periodos': periodos})
+        return render(request, self.template_name, {
+            'periodos'  : periodos,
+            'categorias': categorias,
+        })
 
     def post(self, request):
+        from django.urls import reverse
+        tipo       = request.POST.get('tipo', 'periodo')
+        confirmado = request.POST.get('confirmado', '0')
+
+        if tipo == 'periodo':
+            return self._iniciar_periodo(request, confirmado)
+        else:
+            return self._iniciar_categoria(request)
+
+    def _iniciar_periodo(self, request, confirmado):
+        from django.urls import reverse
         periodo = request.POST.get('periodo', '').strip()
 
-        # Validar antes de enviar a Celery
         try:
             validar_periodo(periodo)
         except ValidationError as e:
             messages.error(request, f"Periodo inválido: {e.message}")
             return redirect('backups:iniciar')
 
-        # Verificar que no haya un backup en proceso para ese periodo
         en_proceso = BackupLog.objects.filter(
             periodo=periodo,
             estado=BackupLog.Estado.EN_PROCESO,
         ).exists()
-
         if en_proceso:
-            messages.warning(
-                request,
-                f"Ya existe un backup en proceso para el periodo {periodo}."
-            )
+            messages.warning(request, f"Ya hay un backup en proceso para {periodo}.")
             return redirect('backups:lista')
 
-        # Disparar tarea Celery
-        tarea = backup_periodo.delay(periodo)
-        logger.info(f"Backup disparado — periodo={periodo} task_id={tarea.id}")
+        tiene_previos = BackupLog.objects.filter(periodo=periodo).exists()
+        if tiene_previos and confirmado != '1':
+            url = reverse('backups:confirmar') + f'?periodo={periodo}&tipo=periodo'
+            return redirect(url)
 
+        eliminados, _ = BackupLog.objects.filter(periodo=periodo).delete()
+        if eliminados:
+            messages.info(request, f"Eliminados {eliminados} registros anteriores.")
+
+        tarea = backup_periodo.delay(periodo)
+        messages.success(request, f"Backup periodo {periodo} iniciado. ID: {tarea.id}")
+        return redirect('backups:lista')
+
+    def _iniciar_categoria(self, request):
+        from django.urls import reverse
+        from .tasks import backup_categoria
+
+        cat_id               = request.POST.get('categoria_id', '').strip()
+        cat_nombre           = request.POST.get('categoria_nombre', '').strip()
+        cat_idnumber         = request.POST.get('categoria_idnumber', '').strip()
+        incluir_subcategorias = request.POST.get('incluir_subcategorias') == '1'
+        confirmado           = request.POST.get('confirmado', '0')
+
+        try:
+            validar_categoria_id(cat_id)
+        except ValidationError as e:
+            messages.error(request, f"Categoría inválida: {e.message}")
+            return redirect('backups:iniciar')
+
+        cat_id = int(cat_id)
+
+        # Carpeta fallback: idnumber si existe, sino nombre sanitizado
+        cat_carpeta = sanitizar_nombre_archivo(cat_idnumber or cat_nombre)
+
+        en_proceso = BackupLog.objects.filter(
+            categoria_id=cat_id,
+            estado=BackupLog.Estado.EN_PROCESO,
+        ).exists()
+        if en_proceso:
+            messages.warning(request, f"Ya hay un backup en proceso para la categoría {cat_nombre}.")
+            return redirect('backups:lista')
+
+        tiene_previos = BackupLog.objects.filter(categoria_id=cat_id).exists()
+        if tiene_previos and confirmado != '1':
+            url = (reverse('backups:confirmar') +
+                   f'?categoria_id={cat_id}&categoria_nombre={cat_nombre}&tipo=categoria')
+            return redirect(url)
+
+        eliminados, _ = BackupLog.objects.filter(categoria_id=cat_id).delete()
+        if eliminados:
+            messages.info(request, f"Eliminados {eliminados} registros anteriores.")
+
+        tarea = backup_categoria.delay(
+            cat_id, cat_nombre, cat_carpeta, incluir_subcategorias
+        )
         messages.success(
             request,
-            f"Backup del periodo {periodo} iniciado. "
-            f"ID de tarea: {tarea.id}"
+            f"Backup categoría '{cat_nombre}' iniciado. ID: {tarea.id}"
         )
         return redirect('backups:lista')
 
@@ -217,3 +283,68 @@ class CancelarBackupView(LoginRequiredMixin, View):
             f"Backup cancelado. {revocadas} tarea(s) revocadas."
         )
         return redirect('backups:lista')
+
+
+class BuscarCursoView(LoginRequiredMixin, View):
+    template_name = 'backups/buscar_curso.html'
+
+    def get(self, request):
+        from django.shortcuts import render
+        return render(request, self.template_name)
+
+    def post(self, request):
+        from django.http import JsonResponse
+        from .tasks import backup_curso_individual
+
+        action = request.GET.get('action', 'buscar')
+
+        # ── Disparar backup de un curso ───────────
+        if action == 'backup':
+            curso_id  = request.POST.get('curso_id', '').strip()
+            shortname = request.POST.get('shortname', '').strip()
+            fullname  = request.POST.get('fullname', '').strip()
+
+            if not curso_id.isdigit():
+                return JsonResponse({'error': 'ID inválido'}, status=400)
+
+            tarea = backup_curso_individual.delay(
+                int(curso_id), shortname, fullname
+            )
+            return JsonResponse({'task_id': tarea.id, 'curso_id': curso_id})
+
+        # ── Búsqueda ──────────────────────────────
+        q = request.POST.get('q', '').strip()
+        if len(q) < 2:
+            return JsonResponse({'cursos': []})
+
+        try:
+            with MoodleSSHClient() as ssh:
+                cmd = (
+                    f"cd {ssh.moodle} && "
+                    f"{ssh.moosh} course-list 2>&1"
+                    f" | grep -i '{q}'"
+                )
+                out, err, code = ssh.ejecutar(cmd, timeout=30)
+
+                cursos = []
+                q_lower = q.lower()
+                for linea in out.splitlines():
+                    partes = linea.split('","')
+                    if len(partes) < 4:
+                        continue
+                    cid = partes[0].strip().strip('"')
+                    if not cid.isdigit():
+                        continue
+                    shortname = partes[2].strip().strip('"')
+                    fullname  = partes[3].strip().strip('"')
+
+                    if q_lower in shortname.lower() or q_lower in fullname.lower():
+                        cursos.append({
+                            'id'       : int(cid),
+                            'shortname': shortname,
+                            'fullname' : fullname,
+                        })
+
+            return JsonResponse({'cursos': cursos[:50]})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)

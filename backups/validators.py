@@ -60,3 +60,14 @@ def parsear_shortname(shortname: str) -> dict:
         'periodo' : periodo,
         'programa': programa,
     }
+
+def validar_categoria_id(value) -> None:
+    """Valida que el ID de categoría sea un entero positivo."""
+    try:
+        val = int(value)
+        if val <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        raise ValidationError(
+            f"ID de categoría inválido: '{value}'. Debe ser un número entero positivo."
+        )
