@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — SGBM{% endblock %}
+
+{% block content %}
+<div class="page-header flex gap-2" style="justify-content: space-between;">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Estado general del sistema de backups Moodle</p>
+  </div>
+  <a href="{% url 'backups:iniciar' %}" class="btn btn-primary">+ Nuevo backup</a>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-val">{{ total }}</div>
+    <div class="metric-lbl">Backups totales</div>
+  </div>
+  <div class="metric">
+    <div class="metric-val" style="color: var(--green);">{{ exitosos }}</div>
+    <div class="metric-lbl">Completados</div>
+  </div>
+  <div class="metric">
+    <div class="metric-val" style="color: var(--red);">{{ fallidos }}</div>
+    <div class="metric-lbl">Fallidos</div>
+  </div>
+  <div class="metric">
+    <div class="metric-val" style="color: var(--amber);">{{ en_proceso }}</div>
+    <div class="metric-lbl">En proceso</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">Últimos backups</div>
+  {% if recientes %}
+  <table>
+    <thead>
+      <tr>
+        <th>Periodo</th>
+        <th>Curso</th>
+        <th>Programa</th>
+        <th>Estado</th>
+        <th>Tamaño</th>
+        <th>Fecha</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in recientes %}
+      <tr>
+        <td class="mono">{{ b.periodo }}</td>
+        <td>
+          <a href="{% url 'backups:detalle' b.pk %}"
+             style="color:var(--blue); text-decoration:none;">
+            {{ b.fullname|truncatechars:45 }}
+          </a>
+        </td>
+        <td class="mono muted">{{ b.programa }}</td>
+        <td><span class="badge badge-{{ b.estado }}">{{ b.get_estado_display }}</span></td>
+        <td class="muted">
+          {% if b.tamano_mb %}{{ b.tamano_mb }} MB{% else %}—{% endif %}
+        </td>
+        <td class="muted">{{ b.fecha_inicio|date:"d/m/Y H:i" }}</td>
+        <td>
+          {% if b.archivo_disponible %}
+          <a href="{% url 'backups:descargar' b.pk %}"
+             class="btn btn-outline btn-sm">↓ Descargar</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted" style="padding: 1rem 0;">No hay backups registrados aún.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Si hay backups EN_PROCESO refrescar el dashboard cada 10s
+(function() {
+  const enProceso = document.querySelector('.badge-EN_PROCESO');
+  if (!enProceso) return;
+
+  // Mostrar indicador visual de actualización
+  const nav = document.querySelector('nav');
+  const ind = document.createElement('span');
+  ind.style.cssText = 'font-size:11px; color:var(--amber); margin-left:auto; padding-right:1rem;';
+  ind.textContent   = '⟳ Actualizando...';
+  nav.appendChild(ind);
+
+  let seg = 10;
+  const timer = setInterval(() => {
+    seg--;
+    ind.textContent = `⟳ Actualizando en ${seg}s`;
+    if (seg <= 0) {
+      window.location.reload();
+    }
+  }, 1000);
+})();
+</script>
+{% endblock %}

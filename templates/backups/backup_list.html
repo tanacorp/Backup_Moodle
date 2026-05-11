@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Backups — SGBM{% endblock %}
+
+{% block content %}
+<div class="page-header flex gap-2" style="justify-content: space-between;">
+  <div>
+    <h1>Backups</h1>
+    <p>{{ paginator.count }} registro{{ paginator.count|pluralize }}</p>
+  </div>
+  <a href="{% url 'backups:iniciar' %}" class="btn btn-primary">+ Nuevo</a>
+  <form method="post" action="{% url 'backups:cancelar' %}"
+      onsubmit="return confirm('¿Cancelar todos los backups en proceso?')">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-danger">✕ Cancelar todo</button>
+</form>
+</div>
+
+<!-- Filtros -->
+<form method="get" class="flex gap-1" style="margin-bottom:1rem; flex-wrap:wrap;">
+  <input type="text"   name="q"       placeholder="Buscar curso..."
+         value="{{ filtros.q }}" style="width:200px;">
+  <select name="periodo">
+    <option value="">Todos los periodos</option>
+    {% for p in periodos %}
+    <option value="{{ p }}" {% if filtros.periodo == p %}selected{% endif %}>
+      {{ p }}
+    </option>
+    {% endfor %}
+  </select>
+  <select name="estado">
+    <option value="">Todos los estados</option>
+    {% for val, lbl in estados %}
+    <option value="{{ val }}" {% if filtros.estado == val %}selected{% endif %}>
+      {{ lbl }}
+    </option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-outline">Filtrar</button>
+  {% if filtros.q or filtros.periodo or filtros.estado %}
+  <a href="{% url 'backups:lista' %}" class="btn btn-outline">Limpiar</a>
+  {% endif %}
+</form>
+
+<div class="card">
+  {% if backups %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Periodo</th>
+        <th>Curso</th>
+        <th>Programa</th>
+        <th>Estado</th>
+        <th>Tamaño</th>
+        <th>Inicio</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in backups %}
+      <tr id="row-{{ b.pk }}">
+        <td class="muted mono">{{ b.pk }}</td>
+        <td class="mono">{{ b.periodo }}</td>
+        <td>
+          <a href="{% url 'backups:detalle' b.pk %}"
+             style="color:var(--blue); text-decoration:none;">
+            {{ b.fullname|truncatechars:50 }}
+          </a>
+          <div class="mono muted" style="font-size:11px;">{{ b.shortname }}</div>
+        </td>
+        <td class="mono muted">{{ b.programa }}</td>
+        <td>
+          <span class="badge badge-{{ b.estado }}" id="badge-{{ b.pk }}">
+            {{ b.get_estado_display }}
+          </span>
+        </td>
+        <td class="muted" id="size-{{ b.pk }}">
+          {% if b.tamano_mb %}{{ b.tamano_mb }} MB{% else %}—{% endif %}
+        </td>
+        <td class="muted">{{ b.fecha_inicio|date:"d/m/Y H:i" }}</td>
+        <td>
+          {% if b.archivo_disponible %}
+          <a href="{% url 'backups:descargar' b.pk %}"
+             class="btn btn-outline btn-sm">↓</a>
+          {% elif b.estado == 'EN_PROCESO' %}
+          <span class="muted" style="font-size:11px;" id="spin-{{ b.pk }}">⟳</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Paginación -->
+  {% if is_paginated %}
+  <div class="flex gap-1 mt-2" style="justify-content:center; align-items:center;">
+
+    {% if page_obj.has_previous %}
+    <a href="?page=1{% if filtros.q %}&q={{ filtros.q }}{% endif %}{% if filtros.periodo %}&periodo={{ filtros.periodo }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}"
+      class="btn btn-outline btn-sm">«</a>
+    <a href="?page={{ page_obj.previous_page_number }}{% if filtros.q %}&q={{ filtros.q }}{% endif %}{% if filtros.periodo %}&periodo={{ filtros.periodo }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}"
+      class="btn btn-outline btn-sm">← Anterior</a>
+    {% endif %}
+
+    <span class="muted" style="font-size:13px; padding: 4px 12px;">
+      Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+      <span style="font-size:11px;">({{ paginator.count }} registros)</span>
+    </span>
+
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if filtros.q %}&q={{ filtros.q }}{% endif %}{% if filtros.periodo %}&periodo={{ filtros.periodo }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}"
+      class="btn btn-outline btn-sm">Siguiente →</a>
+    <a href="?page={{ page_obj.paginator.num_pages }}{% if filtros.q %}&q={{ filtros.q }}{% endif %}{% if filtros.periodo %}&periodo={{ filtros.periodo }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}"
+      class="btn btn-outline btn-sm">»</a>
+    {% endif %}
+
+  </div>
+  {% endif %}
+
+  {% else %}
+    <p class="muted" style="padding: 1rem 0;">No se encontraron backups.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  // Contar filas EN_PROCESO en la página actual
+  function hayEnProceso() {
+    return document.querySelectorAll('[id^="badge-"]')
+      .length > 0 &&
+      [...document.querySelectorAll('[id^="badge-"]')]
+      .some(el => el.textContent.trim() === 'En proceso');
+  }
+
+  // Polling individual para actualizar badges sin recargar
+  async function actualizarFila(pk) {
+    try {
+      const r    = await fetch(`/backups/${pk}/estado/`);
+      const data = await r.json();
+      const badge = document.getElementById(`badge-${pk}`);
+      const size  = document.getElementById(`size-${pk}`);
+      const spin  = document.getElementById(`spin-${pk}`);
+
+      if (!badge) return false;
+
+      if (data.estado !== 'EN_PROCESO') {
+        badge.textContent = {
+          'COMPLETADO': 'Completado',
+          'FALLIDO':    'Fallido',
+          'PENDIENTE':  'Pendiente'
+        }[data.estado] || data.estado;
+        badge.className = `badge badge-${data.estado}`;
+
+        if (data.tamano && size)
+          size.textContent = `${data.tamano} MB`;
+        if (spin) spin.remove();
+
+        // Si completado — agregar botón descarga
+        if (data.estado === 'COMPLETADO') {
+          const td = badge.closest('tr')?.querySelector('td:last-child');
+          if (td && !td.querySelector('a'))
+            td.innerHTML = `<a href="/backups/${pk}/descargar/"
+                              class="btn btn-outline btn-sm">↓</a>`;
+        }
+        return false; // ya no en proceso
+      }
+      return true; // sigue en proceso
+    } catch(e) {
+      return true;
+    }
+  }
+
+  if (!hayEnProceso()) return;
+
+  const pkEnProceso = [...document.querySelectorAll('[id^="badge-"]')]
+    .filter(el => el.textContent.trim() === 'En proceso')
+    .map(el => parseInt(el.id.replace('badge-', '')));
+
+  let recarga = false;
+
+  const poll = setInterval(async () => {
+    let alguno = false;
+    for (const pk of pkEnProceso) {
+      const sigue = await actualizarFila(pk);
+      if (sigue) alguno = true;
+    }
+
+    // Actualizar contador de registros
+    try {
+      const r = await fetch(window.location.href + '&_ajax=1', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+    } catch(e) {}
+
+    if (!alguno) {
+      clearInterval(poll);
+      // Recargar para mostrar contadores actualizados
+      setTimeout(() => window.location.reload(), 1500);
+    }
+  }, 4000);
+
+  // Recargar cada 30s si hay EN_PROCESO para capturar nuevas filas
+  const recargaPeriodica = setInterval(() => {
+    if (hayEnProceso()) {
+      window.location.reload();
+    } else {
+      clearInterval(recargaPeriodica);
+    }
+  }, 30000);
+
+})();
+</script>
+{% endblock %}

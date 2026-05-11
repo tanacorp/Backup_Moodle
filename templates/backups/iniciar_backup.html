@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Nuevo backup — SGBM{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Iniciar backup</h1>
+  <p>Selecciona el periodo académico para respaldar todos sus cursos</p>
+</div>
+
+<div class="card" style="max-width: 480px;">
+  <div class="card-title">Periodo académico</div>
+  <form method="post">
+    {% csrf_token %}
+    <div style="margin-bottom: 1rem;">
+      <label style="display:block; font-size:13px; margin-bottom:6px;">
+        Código de periodo <span class="muted">(ej: 20261)</span>
+      </label>
+      <input type="text"
+             name="periodo"
+             placeholder="20261"
+             maxlength="5"
+             pattern="\d{4}[1-3]"
+             required
+             style="width:100%;"
+             autofocus>
+      <p class="muted mt-1" style="font-size:12px;">
+        Formato: YYYYC — año + ciclo (1, 2 o 3)
+      </p>
+    </div>
+
+    {% if periodos %}
+    <div style="margin-bottom: 1.25rem;">
+      <p style="font-size:12px; color:var(--muted); margin-bottom:6px;">
+        O selecciona un periodo anterior:
+      </p>
+      <div style="display:flex; flex-wrap:wrap; gap:6px;">
+        {% for p in periodos %}
+        <button type="button"
+                class="btn btn-outline btn-sm"
+                onclick="document.querySelector('[name=periodo]').value='{{ p }}'">
+          {{ p }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="flex gap-2">
+      <button type="submit" class="btn btn-primary">Iniciar backup</button>
+      <a href="{% url 'backups:lista' %}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

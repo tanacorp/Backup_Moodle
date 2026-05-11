@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ backup.fullname }} — SGBM{% endblock %}
+
+{% block content %}
+<div class="page-header flex gap-2" style="justify-content:space-between;">
+  <div>
+    <h1>{{ backup.fullname|truncatechars:60 }}</h1>
+    <p class="mono">{{ backup.shortname }}</p>
+  </div>
+  <div class="flex gap-1">
+    {% if backup.archivo_disponible %}
+    <a href="{% url 'backups:descargar' backup.pk %}" class="btn btn-primary">
+      ↓ Descargar .mbz
+    </a>
+    {% endif %}
+    <a href="{% url 'backups:lista' %}" class="btn btn-outline">← Volver</a>
+  </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+
+  <div class="card">
+    <div class="card-title">Información del backup</div>
+    <table>
+      <tr><td class="muted">Estado</td>
+          <td><span class="badge badge-{{ backup.estado }}">
+            {{ backup.get_estado_display }}</span></td></tr>
+      <tr><td class="muted">Periodo</td>
+          <td class="mono">{{ backup.periodo }}</td></tr>
+      <tr><td class="muted">Programa</td>
+          <td class="mono">{{ backup.programa }}</td></tr>
+      <tr><td class="muted">ID Moodle</td>
+          <td class="mono">{{ backup.curso_id }}</td></tr>
+      <tr><td class="muted">Inicio</td>
+          <td>{{ backup.fecha_inicio|date:"d/m/Y H:i:s" }}</td></tr>
+      <tr><td class="muted">Fin</td>
+          <td>{% if backup.fecha_fin %}
+                {{ backup.fecha_fin|date:"d/m/Y H:i:s" }}
+              {% else %}—{% endif %}</td></tr>
+      {% if backup.duracion_segundos %}
+      <tr><td class="muted">Duración</td>
+          <td>{{ backup.duracion_segundos }}s</td></tr>
+      {% endif %}
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Archivo</div>
+    <table>
+      <tr><td class="muted">Nombre</td>
+          <td class="mono" style="word-break:break-all;">
+            {{ backup.nombre_archivo|default:"—" }}</td></tr>
+      <tr><td class="muted">Tamaño</td>
+          <td>{% if backup.tamano_mb %}{{ backup.tamano_mb }} MB{% else %}—{% endif %}</td></tr>
+      <tr><td class="muted">Ruta local</td>
+          <td class="mono muted" style="font-size:11px; word-break:break-all;">
+            {{ backup.ruta_local|default:"—" }}</td></tr>
+      <tr><td class="muted">SHA-256</td>
+          <td class="mono muted" style="font-size:11px; word-break:break-all;">
+            {{ backup.checksum_sha256|default:"—" }}</td></tr>
+      <tr><td class="muted">Task ID</td>
+          <td class="mono muted" style="font-size:11px;">
+            {{ backup.celery_task_id|default:"—" }}</td></tr>
+    </table>
+  </div>
+
+</div>
+
+{% if backup.error_detalle %}
+<div class="card mt-2" style="border-color:#f5c0c0;">
+  <div class="card-title" style="color:var(--red);">Detalle del error</div>
+  <pre class="mono" style="white-space:pre-wrap; font-size:12px;
+       color:var(--red); background:var(--red-bg); padding:10px;
+       border-radius:var(--radius);">{{ backup.error_detalle }}</pre>
+</div>
+{% endif %}
+{% endblock %}
