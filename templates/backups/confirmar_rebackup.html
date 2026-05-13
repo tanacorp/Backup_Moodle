@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Confirmar rebackup — SGBM{% endblock %}
+
+{% block content %}
+
+<!-- Contenedor centrado para dar énfasis -->
+<div style="max-width: 600px; margin: 0 auto;">
+
+  <div class="page-header" style="text-align: center; margin-bottom: 1.5rem; justify-content: center;">
+    <div>
+      <h1>Confirmar nuevo backup</h1>
+      <p class="text-muted">
+        Se detectaron registros previos para <strong>{{ descripcion }}</strong>
+      </p>
+    </div>
+  </div>
+
+  <!-- Tarjeta de Confirmación con borde rojo superior -->
+  <div class="card" style="border-top: 4px solid var(--danger); padding: 0;">
+    
+    <!-- Sección de Alerta -->
+    <div class="alert alert-warning" style="margin-bottom: 0; border-radius: 0 0 var(--radius) var(--radius); background: var(--danger-bg); color: var(--danger); border: none;">
+      <div style="display: flex; gap: 1rem; align-items: start;">
+        <!-- Icono Alerta -->
+        <div style="margin-top: 2px;">
+          <svg style="width: 24px; height: 24px; fill: currentColor;" viewBox="0 0 24 24">
+            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+        </div>
+        
+        <div style="flex:1;">
+          <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px;">
+            Esto eliminará registros existentes
+          </div>
+          <p style="font-size: 13px; margin-bottom: 12px; opacity: 0.9;">
+            Se encontraron <strong>{{ total }}</strong> registros relacionados, de los cuales <strong>{{ completados }}</strong> están completados.
+            <br>
+            Si continúas, se borrarán todos estos registros y se iniciará un nuevo proceso desde cero.
+          </p>
+
+          <!-- Estadísticas de lo que se va a borrar -->
+          <div style="background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.2); border-radius: 6px; padding: 10px; display: flex; justify-content: space-around; align-items: center;">
+            <div style="text-align: center;">
+              <div style="font-size: 20px; font-weight: 700;">{{ total }}</div>
+              <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Total</div>
+            </div>
+            <div style="width: 1px; height: 24px; background: rgba(220, 38, 38, 0.3);"></div>
+            <div style="text-align: center;">
+              <div style="font-size: 20px; font-weight: 700;">{{ completados }}</div>
+              <div style="font-size: 10px; text-transform: uppercase; opacity: 0.8;">Completados</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Área de Pregunta y Acciones -->
+    <div style="padding: 1.5rem; border-top: 1px solid var(--border);">
+      <p style="font-size: 14px; color: var(--text-main); margin-bottom: 1.5rem; text-align: center;">
+        ¿Estás seguro de que deseas continuar con el <strong>re-backup</strong>?
+      </p>
+
+      <div class="flex gap-1" style="justify-content: center; width: 100%;">
+        
+        <!-- Botón Cancelar (Seguro) -->
+        <a href="{% url 'backups:lista' %}" class="btn btn-outline" style="flex: 1; justify-content: center;">
+          Cancelar
+        </a>
+
+        <!-- Botón Confirmar (Peligroso) -->
+        <form method="post" action="{% url 'backups:iniciar' %}" style="flex: 1;">
+          {% csrf_token %}
+          <input type="hidden" name="tipo"          value="{{ tipo }}">
+          <input type="hidden" name="confirmado"    value="1">
+          <input type="hidden" name="periodo"       value="{{ periodo }}">
+          <input type="hidden" name="categoria_id"  value="{{ categoria_id }}">
+          <input type="hidden" name="categoria_nombre" value="{{ cat_nombre }}">
+          
+          <button type="submit" class="btn btn-danger" style="width: 100%; justify-content: center; background: var(--danger); border-color: var(--danger);">
+            <svg class="icon-sm" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            Sí, eliminar y re-ejecutar
+          </button>
+        </form>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

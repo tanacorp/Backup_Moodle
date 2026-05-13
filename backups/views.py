@@ -348,3 +348,33 @@ class BuscarCursoView(LoginRequiredMixin, View):
             return JsonResponse({'cursos': cursos[:50]})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+class ConfirmarRebackupView(LoginRequiredMixin, View):
+    def get(self, request):
+        from django.shortcuts import render
+
+        tipo         = request.GET.get('tipo', 'periodo')
+        periodo      = request.GET.get('periodo', '')
+        categoria_id = request.GET.get('categoria_id', '')
+        cat_nombre   = request.GET.get('categoria_nombre', '')
+
+        if tipo == 'periodo':
+            existentes  = BackupLog.objects.filter(periodo=periodo)
+            total       = existentes.count()
+            completados = existentes.filter(estado=BackupLog.Estado.COMPLETADO).count()
+            descripcion = f"Periodo {periodo}"
+        else:
+            existentes  = BackupLog.objects.filter(categoria_id=categoria_id)
+            total       = existentes.count()
+            completados = existentes.filter(estado=BackupLog.Estado.COMPLETADO).count()
+            descripcion = f"Categoría {cat_nombre}"
+
+        return render(request, 'backups/confirmar_rebackup.html', {
+            'tipo'        : tipo,
+            'periodo'     : periodo,
+            'categoria_id': categoria_id,
+            'cat_nombre'  : cat_nombre,
+            'descripcion' : descripcion,
+            'total'       : total,
+            'completados' : completados,
+        })

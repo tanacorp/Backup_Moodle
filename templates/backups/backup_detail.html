@@ -2,76 +2,214 @@
 {% block title %}{{ backup.fullname }} — SGBM{% endblock %}
 
 {% block content %}
-<div class="page-header flex gap-2" style="justify-content:space-between;">
+
+<!-- ENCABEZADO DE DETALLE -->
+<div class="page-header">
   <div>
-    <h1>{{ backup.fullname|truncatechars:60 }}</h1>
-    <p class="mono">{{ backup.shortname }}</p>
+    <!-- Metadatos rápidos -->
+    <div class="flex gap-1" style="margin-bottom: 8px;">
+      <span class="badge badge-{{ backup.estado }}" style="font-size: 12px;">
+        {{ backup.get_estado_display }}
+      </span>
+      <span class="mono text-muted" style="font-size: 11px; border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px;">
+        ID: {{ backup.pk }}
+      </span>
+    </div>
+    
+    <h1 style="margin-bottom: 4px;">{{ backup.fullname }}</h1>
+    <p class="mono text-muted">{{ backup.shortname }}</p>
   </div>
+
   <div class="flex gap-1">
     {% if backup.archivo_disponible %}
     <a href="{% url 'backups:descargar' backup.pk %}" class="btn btn-primary">
-      ↓ Descargar .mbz
+      <svg class="icon-sm" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      Descargar .mbz
     </a>
     {% endif %}
     <a href="{% url 'backups:lista' %}" class="btn btn-outline">← Volver</a>
   </div>
 </div>
 
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+<!-- GRID DE DETALLES -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;">
 
+  <!-- TARJETA 1: INFORMACIÓN DEL CURSO -->
   <div class="card">
-    <div class="card-title">Información del backup</div>
-    <table>
-      <tr><td class="muted">Estado</td>
-          <td><span class="badge badge-{{ backup.estado }}">
-            {{ backup.get_estado_display }}</span></td></tr>
-      <tr><td class="muted">Periodo</td>
-          <td class="mono">{{ backup.periodo }}</td></tr>
-      <tr><td class="muted">Programa</td>
-          <td class="mono">{{ backup.programa }}</td></tr>
-      <tr><td class="muted">ID Moodle</td>
-          <td class="mono">{{ backup.curso_id }}</td></tr>
-      <tr><td class="muted">Inicio</td>
-          <td>{{ backup.fecha_inicio|date:"d/m/Y H:i:s" }}</td></tr>
-      <tr><td class="muted">Fin</td>
-          <td>{% if backup.fecha_fin %}
-                {{ backup.fecha_fin|date:"d/m/Y H:i:s" }}
-              {% else %}—{% endif %}</td></tr>
-      {% if backup.duracion_segundos %}
-      <tr><td class="muted">Duración</td>
-          <td>{{ backup.duracion_segundos }}s</td></tr>
-      {% endif %}
-    </table>
+    <div class="card-header">
+      <div class="card-title">Información del backup</div>
+    </div>
+    <div class="card-body">
+      <dl class="dl-list">
+        <div class="dl-row">
+          <dt class="dl-term">Periodo</dt>
+          <dd class="dl-desc mono">{{ backup.periodo }}</dd>
+        </div>
+        <div class="dl-row">
+          <dt class="dl-term">Programa</dt>
+          <dd class="dl-desc mono">{{ backup.programa }}</dd>
+        </div>
+        <div class="dl-row">
+          <dt class="dl-term">ID Moodle</dt>
+          <dd class="dl-desc mono">{{ backup.curso_id }}</dd>
+        </div>
+        <div class="dl-row">
+          <dt class="dl-term">Inicio</dt>
+          <dd class="dl-desc">{{ backup.fecha_inicio|date:"d/m/Y H:i:s" }}</dd>
+        </div>
+        <div class="dl-row">
+          <dt class="dl-term">Fin</dt>
+          <dd class="dl-desc">
+            {% if backup.fecha_fin %}
+              {{ backup.fecha_fin|date:"d/m/Y H:i:s" }}
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          </dd>
+        </div>
+        {% if backup.duracion_segundos %}
+        <div class="dl-row">
+          <dt class="dl-term">Duración</dt>
+          <dd class="dl-desc">
+            <span class="mono">{{ backup.duracion_segundos }}s</span>
+          </dd>
+        </div>
+        {% endif %}
+      </dl>
+    </div>
   </div>
 
+  <!-- TARJETA 2: ARCHIVO -->
   <div class="card">
-    <div class="card-title">Archivo</div>
-    <table>
-      <tr><td class="muted">Nombre</td>
-          <td class="mono" style="word-break:break-all;">
-            {{ backup.nombre_archivo|default:"—" }}</td></tr>
-      <tr><td class="muted">Tamaño</td>
-          <td>{% if backup.tamano_mb %}{{ backup.tamano_mb }} MB{% else %}—{% endif %}</td></tr>
-      <tr><td class="muted">Ruta local</td>
-          <td class="mono muted" style="font-size:11px; word-break:break-all;">
-            {{ backup.ruta_local|default:"—" }}</td></tr>
-      <tr><td class="muted">SHA-256</td>
-          <td class="mono muted" style="font-size:11px; word-break:break-all;">
-            {{ backup.checksum_sha256|default:"—" }}</td></tr>
-      <tr><td class="muted">Task ID</td>
-          <td class="mono muted" style="font-size:11px;">
-            {{ backup.celery_task_id|default:"—" }}</td></tr>
-    </table>
+    <div class="card-header">
+      <div class="card-title">Archivo resultante</div>
+    </div>
+    <div class="card-body">
+      {% if backup.archivo_disponible or backup.nombre_archivo %}
+        <dl class="dl-list">
+          <div class="dl-row">
+            <dt class="dl-term">Tamaño</dt>
+            <dd class="dl-desc">
+              {% if backup.tamano_mb %}
+                <strong style="font-size: 15px;">{{ backup.tamano_mb }} MB</strong>
+              {% else %}
+                —
+              {% endif %}
+            </dd>
+          </div>
+          
+          <div class="dl-row">
+            <dt class="dl-term">Nombre</dt>
+            <dd class="dl-desc mono text-truncate" style="font-size: 12px; line-height: 1.4;">
+              {{ backup.nombre_archivo|default:"—" }}
+            </dd>
+          </div>
+
+          <div class="dl-row">
+            <dt class="dl-term">Ruta Local</dt>
+            <dd class="dl-desc mono muted" style="font-size: 11px; word-break: break-all;">
+              {{ backup.ruta_local|default:"—" }}
+            </dd>
+          </div>
+
+          <div class="dl-row">
+            <dt class="dl-term">SHA-256</dt>
+            <dd class="dl-desc mono muted" style="font-size: 11px; word-break: break-all; font-family: monospace;">
+              {{ backup.checksum_sha256|default:"—" }}
+            </dd>
+          </div>
+
+          <div class="dl-row">
+            <dt class="dl-term">Celery Task ID</dt>
+            <dd class="dl-desc mono muted" style="font-size: 11px;">
+              {{ backup.celery_task_id|default:"—" }}
+            </dd>
+          </div>
+        </dl>
+      {% else %}
+        <!-- Empty state si no hay archivo disponible y no falló -->
+        {% if backup.estado == 'EN_PROCESO' %}
+          <div class="flex gap-1" style="color: var(--warning); padding: 1rem 0; font-weight: 500;">
+            <svg class="icon-sm" style="animation: spin 1s linear infinite;" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
+            Generando archivo...
+          </div>
+        {% else %}
+          <p class="muted">El archivo no está disponible.</p>
+        {% endif %}
+      {% endif %}
+    </div>
   </div>
 
 </div>
 
+<!-- SECCIÓN DE ERROR (ESTILO TERMINAL) -->
 {% if backup.error_detalle %}
-<div class="card mt-2" style="border-color:#f5c0c0;">
-  <div class="card-title" style="color:var(--red);">Detalle del error</div>
-  <pre class="mono" style="white-space:pre-wrap; font-size:12px;
-       color:var(--red); background:var(--red-bg); padding:10px;
-       border-radius:var(--radius);">{{ backup.error_detalle }}</pre>
+<div class="card mt-2" style="border-color: var(--danger);">
+  <div class="card-header" style="background: var(--danger-bg);">
+    <div class="card-title" style="color: var(--danger);">
+      <span style="margin-right:6px;">⚠</span>Detalle del error
+    </div>
+  </div>
+  <div class="card-body" style="padding: 0;">
+    <pre class="error-terminal">{{ backup.error_detalle }}</pre>
+  </div>
 </div>
 {% endif %}
+
+<!-- ESTILOS ESPECÍFICOS DE ESTA PÁGINA -->
+<style>
+  /* Lista de Definiciones (Key / Value) */
+  .dl-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .dl-row {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: baseline;
+  }
+  
+  .dl-row:last-child { border-bottom: none; }
+  
+  .dl-term {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  
+  .dl-desc {
+    font-size: 13px;
+    color: var(--text-main);
+    word-break: break-word; /* Permitir romper palabras si es muy largo */
+  }
+
+  /* Terminal style para errores */
+  .error-terminal {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    background-color: #2d2d2d; /* Fondo oscuro para contraste */
+    color: #e74c3c; /* Texto rojo claro */
+    padding: 1.25rem;
+    margin: 0;
+    white-space: pre-wrap;
+    border-radius: 0 0 var(--radius) var(--radius);
+    line-height: 1.6;
+  }
+
+  /* Truncado de texto para nombres muy largos */
+  .text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+</style>
+
 {% endblock %}

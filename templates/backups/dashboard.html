@@ -10,27 +10,40 @@
   <a href="{% url 'backups:iniciar' %}" class="btn btn-primary">+ Nuevo backup</a>
 </div>
 
+<!-- MÉTRICAS CON SEMÁFORO (Clases añadidas: metric-total, metric-success, etc.) -->
 <div class="metrics">
-  <div class="metric">
+  <!-- Total (Azul) -->
+  <div class="metric metric-total">
     <div class="metric-val">{{ total }}</div>
     <div class="metric-lbl">Backups totales</div>
   </div>
-  <div class="metric">
-    <div class="metric-val" style="color: var(--green);">{{ exitosos }}</div>
+  
+  <!-- Completados (Verde) -->
+  <div class="metric metric-success">
+    <div class="metric-val">{{ exitosos }}</div>
     <div class="metric-lbl">Completados</div>
   </div>
-  <div class="metric">
-    <div class="metric-val" style="color: var(--red);">{{ fallidos }}</div>
+  
+  <!-- Fallidos (Rojo) -->
+  <div class="metric metric-danger">
+    <div class="metric-val">{{ fallidos }}</div>
     <div class="metric-lbl">Fallidos</div>
   </div>
-  <div class="metric">
-    <div class="metric-val" style="color: var(--amber);">{{ en_proceso }}</div>
+  
+  <!-- En proceso (Naranja) -->
+  <div class="metric metric-warning">
+    <div class="metric-val">{{ en_proceso }}</div>
     <div class="metric-lbl">En proceso</div>
   </div>
 </div>
 
+<!-- TABLA DE ÚLTIMOS BACKUPS -->
 <div class="card">
-  <div class="card-title">Últimos backups</div>
+  <!-- Opcional: Puedes envolver el título en un div con estilo si quieres más espacio -->
+  <div style="padding: 1.5rem 1.5rem 0.5rem 1.5rem;">
+    <div class="card-title">Últimos backups</div>
+  </div>
+  
   {% if recientes %}
   <table>
     <thead>
@@ -41,7 +54,7 @@
         <th>Estado</th>
         <th>Tamaño</th>
         <th>Fecha</th>
-        <th></th>
+        <th style="text-align: right;">Acciones</th>
       </tr>
     </thead>
     <tbody>
@@ -50,7 +63,7 @@
         <td class="mono">{{ b.periodo }}</td>
         <td>
           <a href="{% url 'backups:detalle' b.pk %}"
-             style="color:var(--blue); text-decoration:none;">
+             style="color:var(--primary); text-decoration:none; font-weight:500;">
             {{ b.fullname|truncatechars:45 }}
           </a>
         </td>
@@ -60,10 +73,14 @@
           {% if b.tamano_mb %}{{ b.tamano_mb }} MB{% else %}—{% endif %}
         </td>
         <td class="muted">{{ b.fecha_inicio|date:"d/m/Y H:i" }}</td>
-        <td>
+        <td style="text-align: right;">
           {% if b.archivo_disponible %}
+          <!-- BOTÓN DESCARGAR MEJORADO -->
           <a href="{% url 'backups:descargar' b.pk %}"
-             class="btn btn-outline btn-sm">↓ Descargar</a>
+             class="btn-download">
+            <svg class="icon-sm" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Descargar
+          </a>
           {% endif %}
         </td>
       </tr>
@@ -71,7 +88,7 @@
     </tbody>
   </table>
   {% else %}
-    <p class="muted" style="padding: 1rem 0;">No hay backups registrados aún.</p>
+    <p class="muted" style="padding: 2rem; text-align: center;">No hay backups registrados aún.</p>
   {% endif %}
 </div>
 {% endblock %}
@@ -83,10 +100,10 @@
   const enProceso = document.querySelector('.badge-EN_PROCESO');
   if (!enProceso) return;
 
-  // Mostrar indicador visual de actualización
+  // Mostrar indicador visual de actualización en la barra de navegación
   const nav = document.querySelector('nav');
   const ind = document.createElement('span');
-  ind.style.cssText = 'font-size:11px; color:var(--amber); margin-left:auto; padding-right:1rem;';
+  ind.style.cssText = 'font-size:11px; color:var(--primary); margin-left:auto; padding-right:1rem; font-weight:500; animation: pulse 1s infinite;';
   ind.textContent   = '⟳ Actualizando...';
   nav.appendChild(ind);
 

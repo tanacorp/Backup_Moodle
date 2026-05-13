@@ -2,123 +2,155 @@
 {% block title %}Backups — SGBM{% endblock %}
 
 {% block content %}
+
+<!-- CABECERA -->
 <div class="page-header flex gap-2" style="justify-content: space-between;">
   <div>
     <h1>Backups</h1>
-    <p>{{ paginator.count }} registro{{ paginator.count|pluralize }}</p>
+    <p class="text-muted">{{ paginator.count }} registro{{ paginator.count|pluralize }} en total</p>
   </div>
-  <a href="{% url 'backups:iniciar' %}" class="btn btn-primary">+ Nuevo</a>
-  <form method="post" action="{% url 'backups:cancelar' %}"
-      onsubmit="return confirm('¿Cancelar todos los backups en proceso?')">
-  {% csrf_token %}
-  <button type="submit" class="btn btn-danger">✕ Cancelar todo</button>
-</form>
+  
+  <div class="flex gap-1">
+    <form method="post" action="{% url 'backups:cancelar' %}"
+          onsubmit="return confirm('¿Estás seguro de cancelar todos los backups en proceso?')"
+          style="display: inline-flex;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">✕ Cancelar procesos</button>
+    </form>
+    <a href="{% url 'backups:iniciar' %}" class="btn btn-primary">+ Nuevo Backup</a>
+  </div>
 </div>
 
-<!-- Filtros -->
-<form method="get" class="flex gap-1" style="margin-bottom:1rem; flex-wrap:wrap;">
-  <input type="text"   name="q"       placeholder="Buscar curso..."
-         value="{{ filtros.q }}" style="width:200px;">
-  <select name="periodo">
-    <option value="">Todos los periodos</option>
-    {% for p in periodos %}
-    <option value="{{ p }}" {% if filtros.periodo == p %}selected{% endif %}>
-      {{ p }}
-    </option>
-    {% endfor %}
-  </select>
-  <select name="estado">
-    <option value="">Todos los estados</option>
-    {% for val, lbl in estados %}
-    <option value="{{ val }}" {% if filtros.estado == val %}selected{% endif %}>
-      {{ lbl }}
-    </option>
-    {% endfor %}
-  </select>
-  <button type="submit" class="btn btn-outline">Filtrar</button>
-  {% if filtros.q or filtros.periodo or filtros.estado %}
-  <a href="{% url 'backups:lista' %}" class="btn btn-outline">Limpiar</a>
-  {% endif %}
-</form>
-
-<div class="card">
-  {% if backups %}
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Periodo</th>
-        <th>Curso</th>
-        <th>Programa</th>
-        <th>Estado</th>
-        <th>Tamaño</th>
-        <th>Inicio</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for b in backups %}
-      <tr id="row-{{ b.pk }}">
-        <td class="muted mono">{{ b.pk }}</td>
-        <td class="mono">{{ b.periodo }}</td>
-        <td>
-          <a href="{% url 'backups:detalle' b.pk %}"
-             style="color:var(--blue); text-decoration:none;">
-            {{ b.fullname|truncatechars:50 }}
-          </a>
-          <div class="mono muted" style="font-size:11px;">{{ b.shortname }}</div>
-        </td>
-        <td class="mono muted">{{ b.programa }}</td>
-        <td>
-          <span class="badge badge-{{ b.estado }}" id="badge-{{ b.pk }}">
-            {{ b.get_estado_display }}
-          </span>
-        </td>
-        <td class="muted" id="size-{{ b.pk }}">
-          {% if b.tamano_mb %}{{ b.tamano_mb }} MB{% else %}—{% endif %}
-        </td>
-        <td class="muted">{{ b.fecha_inicio|date:"d/m/Y H:i" }}</td>
-        <td>
-          {% if b.archivo_disponible %}
-          <a href="{% url 'backups:descargar' b.pk %}"
-             class="btn btn-outline btn-sm">↓</a>
-          {% elif b.estado == 'EN_PROCESO' %}
-          <span class="muted" style="font-size:11px;" id="spin-{{ b.pk }}">⟳</span>
-          {% endif %}
-        </td>
-      </tr>
+<!-- BARRA DE FILTROS (Card secundaria) -->
+<div class="card" style="padding: 1rem; margin-bottom: 1.5rem;">
+  <form method="get" class="flex gap-1" style="flex-wrap: wrap; align-items: center;">
+    <!-- Input de texto con ancho fijo controlado -->
+    <input type="text" name="q" placeholder="Buscar curso..." value="{{ filtros.q }}"
+           style="width: 250px; min-width: 200px;">
+    
+    <!-- Selects con ancho automático -->
+    <select name="periodo" style="width: auto;">
+      <option value="">Todos los periodos</option>
+      {% for p in periodos %}
+      <option value="{{ p }}" {% if filtros.periodo == p %}selected{% endif %}>
+        {{ p }}
+      </option>
       {% endfor %}
-    </tbody>
-  </table>
+    </select>
+    
+    <select name="estado" style="width: auto;">
+      <option value="">Todos los estados</option>
+      {% for val, lbl in estados %}
+      <option value="{{ val }}" {% if filtros.estado == val %}selected{% endif %}>
+        {{ lbl }}
+      </option>
+      {% endfor %}
+    </select>
 
-  <!-- Paginación -->
+    <!-- Botón de búsqueda principal -->
+    <button type="submit" class="btn btn-primary">
+      <svg class="icon-sm" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      Filtrar
+    </button>
+
+    <!-- Limpiar filtros -->
+    {% if filtros.q or filtros.periodo or filtros.estado %}
+    <a href="{% url 'backups:lista' %}" class="btn btn-outline text-muted" style="text-decoration: none;">
+      Limpiar
+    </a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- TABLA DE RESULTADOS -->
+<div class="card">
+  <div class="table-container">
+  {% if backups %}
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 50px;">ID</th>
+          <th style="width: 100px;">Periodo</th>
+          <th>Curso</th>
+          <th style="width: 150px;">Programa</th>
+          <th style="width: 120px;">Estado</th>
+          <th style="width: 100px;">Tamaño</th>
+          <th style="width: 150px;">Inicio</th>
+          <th style="text-align: right; width: 140px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in backups %}
+        <tr id="row-{{ b.pk }}">
+          <td class="muted mono">{{ b.pk }}</td>
+          <td class="mono">{{ b.periodo }}</td>
+          <td>
+            <a href="{% url 'backups:detalle' b.pk %}"
+               style="color:var(--primary); text-decoration:none; font-weight: 500;">
+              {{ b.fullname|truncatechars:50 }}
+            </a>
+            <div class="mono text-muted" style="font-size:11px; margin-top:2px;">{{ b.shortname }}</div>
+          </td>
+          <td class="mono text-muted">{{ b.programa }}</td>
+          <td>
+            <span class="badge badge-{{ b.estado }}" id="badge-{{ b.pk }}">
+              {{ b.get_estado_display }}
+            </span>
+          </td>
+          <td class="muted" id="size-{{ b.pk }}">
+            {% if b.tamano_mb %}{{ b.tamano_mb }} MB{% else %}—{% endif %}
+          </td>
+          <td class="muted">{{ b.fecha_inicio|date:"d/m/Y H:i" }}</td>
+          <td style="text-align: right;">
+            {% if b.archivo_disponible %}
+            <!-- BOTÓN DESCARGAR ESTILIZADO -->
+            <a href="{% url 'backups:descargar' b.pk %}" class="btn-download">
+              <svg class="icon-sm" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              Descargar
+            </a>
+            {% elif b.estado == 'EN_PROCESO' %}
+            <span class="muted" style="font-size:11px;" id="spin-{{ b.pk }}">⟳ Procesando...</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <!-- Empty State -->
+    <div style="text-align: center; padding: 3rem 1rem;">
+      <div class="text-muted" style="margin-bottom: 1rem;">
+        <svg style="width:48px; height:48px; fill:var(--text-light);" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+      </div>
+      <p class="muted">No se encontraron backups con estos filtros.</p>
+      <a href="{% url 'backups:lista' %}" class="btn btn-outline btn-sm mt-1">Limpiar filtros</a>
+    </div>
+  {% endif %}
+  </div>
+
+  <!-- PAGINACIÓN -->
   {% if is_paginated %}
-  <div class="flex gap-1 mt-2" style="justify-content:center; align-items:center;">
+  <div class="flex gap-1" style="justify-content:center; padding: 1rem 0; border-top: 1px solid var(--border);">
 
     {% if page_obj.has_previous %}
     <a href="?page=1{% if filtros.q %}&q={{ filtros.q }}{% endif %}{% if filtros.periodo %}&periodo={{ filtros.periodo }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}"
       class="btn btn-outline btn-sm">«</a>
     <a href="?page={{ page_obj.previous_page_number }}{% if filtros.q %}&q={{ filtros.q }}{% endif %}{% if filtros.periodo %}&periodo={{ filtros.periodo }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}"
-      class="btn btn-outline btn-sm">← Anterior</a>
+      class="btn btn-outline btn-sm">←</a>
     {% endif %}
 
-    <span class="muted" style="font-size:13px; padding: 4px 12px;">
-      Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-      <span style="font-size:11px;">({{ paginator.count }} registros)</span>
+    <span class="text-muted" style="font-size:13px; display:flex; align-items:center;">
+      Página <b style="color:var(--text-main); margin: 0 4px;">{{ page_obj.number }}</b> de {{ page_obj.paginator.num_pages }}
     </span>
 
     {% if page_obj.has_next %}
     <a href="?page={{ page_obj.next_page_number }}{% if filtros.q %}&q={{ filtros.q }}{% endif %}{% if filtros.periodo %}&periodo={{ filtros.periodo }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}"
-      class="btn btn-outline btn-sm">Siguiente →</a>
+      class="btn btn-outline btn-sm">→</a>
     <a href="?page={{ page_obj.paginator.num_pages }}{% if filtros.q %}&q={{ filtros.q }}{% endif %}{% if filtros.periodo %}&periodo={{ filtros.periodo }}{% endif %}{% if filtros.estado %}&estado={{ filtros.estado }}{% endif %}"
       class="btn btn-outline btn-sm">»</a>
     {% endif %}
 
   </div>
-  {% endif %}
-
-  {% else %}
-    <p class="muted" style="padding: 1rem 0;">No se encontraron backups.</p>
   {% endif %}
 </div>
 {% endblock %}
@@ -126,15 +158,13 @@
 {% block scripts %}
 <script>
 (function() {
-  // Contar filas EN_PROCESO en la página actual
+  // --- LÓGICA DE ACTUALIZACIÓN ---
   function hayEnProceso() {
-    return document.querySelectorAll('[id^="badge-"]')
-      .length > 0 &&
+    return document.querySelectorAll('[id^="badge-"]').length > 0 &&
       [...document.querySelectorAll('[id^="badge-"]')]
       .some(el => el.textContent.trim() === 'En proceso');
   }
 
-  // Polling individual para actualizar badges sin recargar
   async function actualizarFila(pk) {
     try {
       const r    = await fetch(`/backups/${pk}/estado/`);
@@ -146,6 +176,7 @@
       if (!badge) return false;
 
       if (data.estado !== 'EN_PROCESO') {
+        // Actualizar Badge
         badge.textContent = {
           'COMPLETADO': 'Completado',
           'FALLIDO':    'Fallido',
@@ -153,27 +184,37 @@
         }[data.estado] || data.estado;
         badge.className = `badge badge-${data.estado}`;
 
+        // Actualizar Tamaño
         if (data.tamano && size)
           size.textContent = `${data.tamano} MB`;
+        
+        // Quitar Spinner
         if (spin) spin.remove();
 
-        // Si completado — agregar botón descarga
+        // Si completado — agregar botón descarga CON EL NUEVO ESTILO
         if (data.estado === 'COMPLETADO') {
           const td = badge.closest('tr')?.querySelector('td:last-child');
-          if (td && !td.querySelector('a'))
-            td.innerHTML = `<a href="/backups/${pk}/descargar/"
-                              class="btn btn-outline btn-sm">↓</a>`;
+          if (td && !td.querySelector('a')) {
+            // Usamos el mismo HTML del botón descargar
+            td.innerHTML = `
+            <a href="/backups/${pk}/descargar/" class="btn-download">
+              <svg class="icon-sm" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              Descargar
+            </a>`;
+          }
         }
         return false; // ya no en proceso
       }
       return true; // sigue en proceso
     } catch(e) {
+      console.error("Error polling:", e);
       return true;
     }
   }
 
   if (!hayEnProceso()) return;
 
+  // Identificar PKs en proceso
   const pkEnProceso = [...document.querySelectorAll('[id^="badge-"]')]
     .filter(el => el.textContent.trim() === 'En proceso')
     .map(el => parseInt(el.id.replace('badge-', '')));
@@ -189,12 +230,12 @@
 
     if (!alguno) {
       clearInterval(poll);
-      // Recargar para mostrar contadores actualizados
+      // Pequeña pausa para que el usuario vea el cambio antes de recargar la paginación
       setTimeout(() => window.location.reload(), 1500);
     }
   }, 4000);
 
-  // Recargar cada 30s si hay EN_PROCESO para capturar nuevas filas
+  // Recarga total de seguridad cada 30s
   const recargaPeriodica = setInterval(() => {
     if (hayEnProceso()) {
       window.location.reload();

@@ -94,7 +94,7 @@ class MoodleSSHClient:
         ruta_completa = f"{self.temp_dir}/{ruta_destino}"
         self.ejecutar(f"mkdir -p '{carpeta}'")
         
-        cmd = f"cd {self.moodle} && {self.moosh} course-backup -f '{ruta_completa}' {curso_id} 2>&1"
+        cmd = f"cd {self.moodle} && {self.moosh} course-backup -F '{ruta_completa}' {curso_id} 2>&1"
         out, err, code = self.ejecutar(cmd, timeout=600)
         return (code == 0), (out or err)
 

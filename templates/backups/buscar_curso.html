@@ -2,74 +2,161 @@
 {% block title %}Buscar curso — SGBM{% endblock %}
 
 {% block content %}
+
 <div class="page-header">
-  <h1>Backup de curso individual</h1>
-  <p>Busca el curso y dispara el backup directamente</p>
+  <div>
+    <h1>Backup de curso individual</h1>
+    <p class="text-muted">Busca el curso y dispara el backup directamente</p>
+  </div>
 </div>
 
-<div class="card" style="max-width: 680px;">
-  <div class="card-title">Buscar curso</div>
-
-  <div style="position:relative; margin-bottom:1rem;">
-    <input type="text"
-           id="buscador"
-           placeholder="Escribe el nombre o shortname del curso..."
-           style="width:100%; padding-right:2.5rem;"
-           autocomplete="off">
-    <span id="spinner"
-          style="display:none; position:absolute; right:10px; top:8px;
-                 font-size:14px; color:var(--muted);">⟳</span>
-  </div>
-
-  <!-- Resultados -->
-  <div id="resultados" style="display:none;">
-    <p class="muted" style="font-size:12px; margin-bottom:8px;">
-      <span id="count-resultados">0</span> cursos encontrados
-    </p>
-    <div id="lista-cursos" style="max-height:360px; overflow-y:auto;
-         border:1px solid var(--border); border-radius:var(--radius);">
+<!-- Tarjeta Principal -->
+<div class="card" style="max-width: 700px; margin: 0 auto;">
+  
+  <div class="card-body">
+    <!-- Título interno de la tarjeta -->
+    <div class="card-title" style="margin-bottom: 1rem; color: var(--text-main); font-size: 14px;">
+      Buscador de cursos
     </div>
-  </div>
 
-  <div id="sin-resultados" style="display:none; padding:1rem 0;">
-    <p class="muted">No se encontraron cursos para esa búsqueda.</p>
-  </div>
+      <!-- Input de Búsqueda Mejorado (Más alto) -->
+    <div style="position: relative; margin-bottom: 1rem;">
+      <!-- Input -->
+      <input type="text"
+             id="buscador"
+             placeholder="Escribe el nombre o código del curso..."
+             style="width: 100%; 
+                    height: 52px; 
+                    padding: 12px 48px 12px 48px; /* Padding grande para los iconos */
+                    font-size: 15px; /* Texto más grande */
+                    border-radius: var(--radius);" /* Bordes más redondos */
+             autocomplete="off"
+             class="mono">
+      
+      <!-- Icono Lupa (Izquierda) -->
+      <svg style="position: absolute; left: 16px; top: 16px; color: var(--text-muted); opacity: 0.5; width: 20px; height: 20px;" viewBox="0 0 24 24">
+        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+      </svg>
 
-  <div id="error-busqueda" style="display:none;" class="alert alert-error mt-2"></div>
+      <!-- Spinner (Derecha) -->
+      <span id="spinner" style="display:none; position: absolute; right: 16px; top: 16px;">
+        <svg style="animation: spin 1s linear infinite; color: var(--primary); width: 20px; height: 20px;" viewBox="0 0 24 24">
+          <path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/>
+        </svg>
+      </span>
+    </div>
+
+    <!-- Contenedor de Resultados (Lista) -->
+    <div id="resultados-container" style="display: none; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;">
+      <div style="background: var(--bg-subtle); padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text-muted); display: flex; justify-content: space-between;">
+        <span>Resultados</span>
+        <span id="count-resultados">0</span>
+      </div>
+      
+      <!-- Lista Scrolleable -->
+      <div id="lista-cursos" style="max-height: 350px; overflow-y: auto; background: var(--bg-surface);">
+        <!-- Los items se inyectan aquí vía JS -->
+      </div>
+    </div>
+
+    <!-- Mensajes de Estado -->
+    <div id="sin-resultados" style="display: none; padding: 2rem; text-align: center;">
+      <svg class="icon" style="width: 32px; height: 32px; margin-bottom: 0.5rem; color: var(--text-light);" viewBox="0 0 24 24">
+        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+      </svg>
+      <p class="muted" style="margin-bottom: 0;">No se encontraron cursos con ese criterio.</p>
+    </div>
+
+    <div id="error-busqueda" style="display:none;" class="alert alert-error mt-2"></div>
+  </div>
 </div>
 
-<!-- Modal confirmación -->
-<div id="modal" style="display:none; position:fixed; inset:0;
-     background:rgba(0,0,0,.4); z-index:1000; align-items:center;
-     justify-content:center;">
-  <div style="background:var(--surface); border-radius:var(--radius-lg);
-              padding:1.5rem; width:480px; max-width:90vw;">
-    <h3 style="font-size:15px; font-weight:600; margin-bottom:.5rem;">
-      Confirmar backup
+<!-- ESTILOS ESPECÍFICOS PARA ESTA PÁGINA -->
+<style>
+  /* Animación del spinner */
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  
+  /* Estilo de fila en la lista */
+  .curso-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s ease;
+  }
+  .curso-item:last-child { border-bottom: none; }
+  .curso-item:hover { background: var(--primary-bg); }
+  
+  .curso-item .title { font-weight: 500; color: var(--text-main); font-size: 13px; display: block; margin-bottom: 2px; }
+  .curso-item .meta { color: var(--text-muted); font-size: 11px; display: flex; gap: 8px; }
+  .curso-item .meta span { background: var(--bg-subtle); padding: 1px 6px; border-radius: 4px; }
+</style>
+
+<!-- Modal Estilizado -->
+<div id="modal" class="modal-overlay">
+  <div class="modal-content card">
+    <h3 style="font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">
+      Confirmar Backup
     </h3>
-    <p class="muted" style="font-size:13px; margin-bottom:1rem;">
-      ¿Deseas generar el backup de este curso?
+    <p class="muted" style="font-size: 14px; margin-bottom: 1.5rem;">
+      ¿Estás seguro de que deseas generar el backup de este curso?
     </p>
-    <div id="modal-info"
-         style="background:var(--bg); border-radius:var(--radius);
-                padding:.75rem 1rem; margin-bottom:1.25rem; font-size:13px;">
+    
+    <!-- Resumen del curso en el modal -->
+    <div id="modal-info" class="modal-resumen">
+      <!-- Se llena con JS -->
     </div>
-    <div class="flex gap-1">
-      <button id="btn-confirmar" class="btn btn-primary">Iniciar backup</button>
+
+    <div class="flex gap-1" style="justify-content: flex-end; margin-top: 1.5rem;">
       <button onclick="cerrarModal()" class="btn btn-outline">Cancelar</button>
+      <button id="btn-confirmar" class="btn btn-primary">
+        <svg class="icon-sm" viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+        Iniciar backup
+      </button>
     </div>
   </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Estilos adicionales para el Modal (inyectados dinámicamente o inline)
+const modalStyles = `
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(15, 23, 42, 0.4); /* Overlay oscuro sutil */
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s;
+}
+.modal-overlay.active { display: flex; opacity: 1; }
+.modal-content {
+  background: white; width: 480px; max-width: 90vw;
+  padding: 2rem;
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+.modal-resumen {
+  background: var(--bg-subtle); border: 1px solid var(--border);
+  padding: 1rem; border-radius: var(--radius);
+  font-size: 13px;
+}
+.modal-resumen label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+.modal-resumen div { margin-bottom: 6px; }
+.modal-resumen strong { color: var(--text-main); font-weight: 600; }
+`;
+const styleSheet = document.createElement("style");
+styleSheet.innerText = modalStyles;
+document.head.appendChild(styleSheet);
+
 let cursoSeleccionado = null;
 let timer = null;
 
 const input      = document.getElementById('buscador');
 const spinner    = document.getElementById('spinner');
-const resultados = document.getElementById('resultados');
+const resultados = document.getElementById('resultados-container');
 const sinRes     = document.getElementById('sin-resultados');
 const lista      = document.getElementById('lista-cursos');
 const errBox     = document.getElementById('error-busqueda');
@@ -82,11 +169,13 @@ input.addEventListener('input', () => {
   if (q.length < 2) {
     resultados.style.display = 'none';
     sinRes.style.display     = 'none';
+    input.style.borderColor = 'var(--border)';
     return;
   }
 
   spinner.style.display = 'inline';
-  timer = setTimeout(() => buscar(q), 400);  // debounce 400ms
+  input.style.borderColor = 'var(--primary)'; // Indicar actividad
+  timer = setTimeout(() => buscar(q), 400);  // debounce
 });
 
 async function buscar(q) {
@@ -102,10 +191,13 @@ async function buscar(q) {
     });
     const data = await r.json();
     spinner.style.display = 'none';
+    input.style.borderColor = 'var(--border)';
 
     if (data.error) {
       errBox.textContent   = `Error: ${data.error}`;
       errBox.style.display = 'block';
+      resultados.style.display = 'none';
+      sinRes.style.display     = 'none';
       return;
     }
 
@@ -119,23 +211,21 @@ async function buscar(q) {
     resultados.style.display = 'block';
     document.getElementById('count-resultados').textContent = data.cursos.length;
 
+    // Renderizar lista con clases nuevas
     lista.innerHTML = data.cursos.map(c => `
       <div onclick="seleccionar(${c.id}, '${escHtml(c.shortname)}', '${escHtml(c.fullname)}')"
-           style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border);
-                  transition:background .1s;"
-           onmouseover="this.style.background='var(--bg)'"
-           onmouseout="this.style.background=''">
-        <div style="font-size:13px; font-weight:500; color:var(--text);">
-          ${escHtml(c.fullname)}
-        </div>
-        <div style="font-size:11px; color:var(--muted); margin-top:2px;">
-          ID: ${c.id} &nbsp;·&nbsp; ${escHtml(c.shortname)}
+           class="curso-item">
+        <span class="title">${escHtml(c.fullname)}</span>
+        <div class="meta">
+          <span class="mono">ID: ${c.id}</span>
+          <span class="mono">${escHtml(c.shortname)}</span>
         </div>
       </div>
     `).join('');
 
   } catch(e) {
     spinner.style.display = 'none';
+    input.style.borderColor = 'var(--danger)';
     errBox.textContent    = `Error de conexión: ${e}`;
     errBox.style.display  = 'block';
   }
@@ -149,26 +239,36 @@ function escHtml(s) {
 
 function seleccionar(id, shortname, fullname) {
   cursoSeleccionado = { id, shortname, fullname };
+  
+  // Renderizar resumen en modal
   document.getElementById('modal-info').innerHTML = `
-    <div style="margin-bottom:4px;">
-      <span class="muted">Nombre:</span>
+    <div>
+      <label>Nombre del curso</label>
       <strong>${escHtml(fullname)}</strong>
     </div>
-    <div style="margin-bottom:4px;">
-      <span class="muted">Shortname:</span>
-      <span class="mono">${escHtml(shortname)}</span>
+    <div>
+      <label>Shortname</label>
+      <strong class="mono">${escHtml(shortname)}</strong>
     </div>
     <div>
-      <span class="muted">ID Moodle:</span>
-      <span class="mono">${id}</span>
+      <label>ID Moodle</label>
+      <strong class="mono">${id}</strong>
     </div>
   `;
-  modal.style.display = 'flex';
+  
+  modal.classList.add('active');
 }
 
 function cerrarModal() {
-  modal.style.display    = 'none';
-  cursoSeleccionado      = null;
+  modal.classList.remove('active');
+  // Esperar a la transición para hacer display none si fuera estricto,
+  // pero opacity maneja la visibilidad visual.
+  setTimeout(() => {
+      if(!modal.classList.contains('active')) {
+          // limpieza opcional
+      }
+  }, 200);
+  cursoSeleccionado = null;
 }
 
 document.getElementById('btn-confirmar').addEventListener('click', async () => {
@@ -176,7 +276,10 @@ document.getElementById('btn-confirmar').addEventListener('click', async () => {
 
   const btn = document.getElementById('btn-confirmar');
   btn.disabled     = true;
-  btn.textContent  = 'Iniciando...';
+  btn.innerHTML  = `
+    <svg class="icon-sm" style="animation: spin 1s linear infinite;" viewBox="0 0 24 24"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
+    Procesando...
+  `;
 
   const fd = new FormData();
   fd.append('curso_id',  cursoSeleccionado.id);
@@ -196,7 +299,10 @@ document.getElementById('btn-confirmar').addEventListener('click', async () => {
     }
   } catch(e) {
     btn.disabled    = false;
-    btn.textContent = 'Iniciar backup';
+    btn.innerHTML = `
+      <svg class="icon-sm" viewBox="0 0 24 24"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+      Reintentar
+    `;
     alert(`Error: ${e}`);
   }
 });
